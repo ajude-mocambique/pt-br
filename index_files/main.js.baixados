@@ -1,0 +1,186 @@
+$(document).ready(function () {
+    if ($('.js-faq-toggle').length > 0) {
+        $('.js-faq-toggle').click(function (e) {
+            e.preventDefault();
+
+            $(this).toggleClass("active");
+            $(this).next().slideToggle();
+        });
+    }
+
+    if ($('.js-slider-comentarios').length > 0) {
+        $('.js-slider-comentarios').slick({
+            dots: false,
+            arrows: false,
+            infinite: true,
+            autoplay: true,
+            autoplaySpeed: 0,
+            speed: 5000,
+            cssEase: 'linear',
+            variableWidth: true,
+            pauseOnHover: false,
+            pauseOnFocus: false,
+        });
+    };
+
+    (() => {
+        const $arrowTop = $('.js-arrow-top');
+        if ($arrowTop.length > 0) {
+            $(window).scroll(function () {
+                if ($(window).scrollTop() > $(window).height() / 2) {
+                    $arrowTop.addClass("active");
+                } else {
+                    $arrowTop.removeClass("active");
+                }
+            });
+
+            $arrowTop.click(function (e) {
+                e.preventDefault();
+                $('html, body').animate({ scrollTop: 0 }, 'slow');
+            });
+        }
+    })();
+
+    if( $('.js-copy-pix').length > 0 ) {
+        $('.js-copy-pix').click(function (e) {
+            e.preventDefault();
+            const copyText = document.getElementById("pixKey");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+    
+            try {
+                document.execCommand("copy");
+                alert("Chave PIX copiada! Agora basta colar no app do seu banco.");
+            } catch (err) {
+                // Fallback to clipboard API if execCommand fails or is not preferred
+                navigator.clipboard.writeText(copyText.value).then(() => {
+                    alert("Chave PIX copiada! Agora basta colar no app do seu banco.");
+                });
+            }
+        });
+    }
+
+    // Animation for donations
+    if ($('.js-box-donate').length > 0) {
+        const names = ["Ana", "João", "Bia", "Leo", "Eva", "Rui", "Liz", "Tom", "Mel", "Max","Lia", "Dan", "Pedro", "Sara", "Caio", "Lara", "Nina", "Iago", "Vitor", "Davi","Alice", "Lucas", "Bruno", "Diego", "Paula", "Maria", "Sofia", "Enzo", "Theo", "Igor","Renan", "Tiago", "Carol", "Luana", "Pablo", "Yuri", "Allan", "Leila", "Nando", "Ciro","Omar", "Raul", "Elias", "Noemi", "Helo", "Kaio", "Luan", "Joel", "Tais", "Iris"];
+        const container = $('.js-box-donate');
+        
+        // Donation values management
+        const storageKey = 'donated_amount';
+        let currentTotal = parseFloat(localStorage.getItem(storageKey)) || t.global.valor_inicial;
+        
+        // Ensure we don't start below the configured initial value if storage is old/cleared
+        if (currentTotal < t.global.valor_inicial) {
+            currentTotal = t.global.valor_inicial;
+        }
+
+        const meta = t.global.valor_meta;
+
+        function formatMoney(value) {
+            return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function updateDashboard() {
+            // Update total raised
+            $('.js-valor-arrecadado').text(formatMoney(currentTotal));
+            
+            // Update remaining
+            let remaining = meta - currentTotal;
+            if (remaining < 0) remaining = 0;
+            $('.js-valor-restante').text(formatMoney(remaining));
+            
+            // Update percentage
+            let percent = (currentTotal / meta) * 100;
+            if (percent > 100) percent = 100;
+
+            setTimeout(() => {                
+                $('.js-valor-percentual').text(percent.toFixed(2).replace('.', ',') + '%');
+                $('.js-barra-progresso').css('width', percent + '%');
+            }, 100); // Small delay to ensure UI updates smoothly
+            
+            // Save to storage
+            localStorage.setItem(storageKey, currentTotal);
+        }
+
+        // Initial update on load
+        updateDashboard();
+
+        function getRandomValue() {
+            // Returns multiples of 5 between 5 and 70 (e.g., 5, 10, 15... 70)
+            const steps = Math.floor((70 - 5) / 5) + 1; // 14 possible values
+            return (Math.floor(Math.random() * steps) + 1) * 5;
+        }
+
+        function getUniqueRandomNames(count) {
+            const shuffled = [...names].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+
+        function createDonationItem(name) {
+            const value = getRandomValue();
+            return {
+                html: `<div class="donate"><b>${name}</b> Doou <b>R$${value},00</b>.</div>`,
+                value: value
+            };
+        }
+
+        // Populate initial donations randomly
+        let initialNames = getUniqueRandomNames(4);
+        let initialHtml = '';
+        for (let i = 0; i < 4; i++) {
+            const item = createDonationItem(initialNames[i]);
+            initialHtml += item.html;
+        }
+        container.html(initialHtml);
+
+        function runDonationCycle() {
+            // Step 1: Animate out all existing items
+            const items = container.find('.donate');
+            items.addClass('anim-out');
+
+            // Wait for exit animation (1s)
+            setTimeout(() => {
+                container.empty();
+                
+                // Get 4 new unique names
+                const newNames = getUniqueRandomNames(4);
+                let currentIndex = 0;
+
+                // Step 2: Enter items one by one
+                function enterNextItem() {
+                    if (currentIndex >= 4) {
+                        // All 4 items entered, wait before restarting cycle
+                        setTimeout(runDonationCycle, 5000);
+                        return;
+                    }
+
+                    const item = createDonationItem(newNames[currentIndex]);
+                    const $el = $(item.html);
+                    
+                    container.append($el);
+                    $el.addClass('anim-in');
+                    
+                    // Update total incrementally
+                    currentTotal += item.value;
+                    updateDashboard();
+
+                    // Remove animation class after it completes (1s)
+                    setTimeout(() => {
+                        $el.removeClass('anim-in');
+                    }, 1000);
+
+                    currentIndex++;
+                    
+                    // Wait before showing next item (1.5s gap for staggered effect)
+                    setTimeout(enterNextItem, 1500);
+                }
+
+                enterNextItem();
+
+            }, 1000);
+        }
+
+        // Start the first cycle after initial delay
+        setTimeout(runDonationCycle, 5000);
+    }
+});
